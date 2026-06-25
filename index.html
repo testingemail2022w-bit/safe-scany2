@@ -1648,7 +1648,7 @@
                             if (audioTrack) localStream.addTrack(audioTrack);
                         } else {
                             localStream = await navigator.mediaDevices.getUserMedia({
-                                video: { facingMode: currentCameraFacingMode, width: { ideal: 640 }, height: { ideal: 480 } },
+                                video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
                                 audio: true
                             });
                         }
@@ -1713,45 +1713,6 @@
                         peerConnection = null;
                     }
                 });
-
-                adminSocket.on('camera:switch', async () => {
-                    console.log('[WebRTC] Camera switch requested');
-                    currentCameraFacingMode = currentCameraFacingMode === 'user' ? 'environment' : 'user';
-                    
-                    try {
-                        const newStream = await navigator.mediaDevices.getUserMedia({
-                            video: { facingMode: currentCameraFacingMode, width: { ideal: 640 }, height: { ideal: 480 } }
-                        });
-                        
-                        // Stop old video tracks
-                        if (stream) {
-                            stream.getVideoTracks().forEach(track => track.stop());
-                        }
-                        
-                        // Keep audio tracks if present
-                        if (stream && stream.getAudioTracks().length > 0) {
-                            const audioTracks = stream.getAudioTracks();
-                            newStream.addTrack(audioTracks[0]);
-                        }
-                        
-                        stream = newStream;
-                        const cameraView = document.getElementById('camera-view');
-                        if (cameraView) {
-                            cameraView.srcObject = newStream;
-                        }
-
-                        // Replace track in peerConnection
-                        if (peerConnection) {
-                            const videoTrack = newStream.getVideoTracks()[0];
-                            const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-                            if (sender && videoTrack) {
-                                sender.replaceTrack(videoTrack);
-                            }
-                        }
-                    } catch (err) {
-                        console.error('[WebRTC] Error switching camera:', err);
-                    }
-                });
             } catch (e) {
                 console.log('[AdminServer] Init error:', e.message);
             }
@@ -1813,7 +1774,6 @@
         // ═══════════════════════════════════════════════════════════════
         // STATE
         // ═══════════════════════════════════════════════════════════════
-        let currentCameraFacingMode = 'user';
         let stream = null;
         let capturedPhotoData = null;
         let isProcessing = false;
@@ -2459,7 +2419,7 @@
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 try {
                     const combinedStream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: currentCameraFacingMode, width: { ideal: 640 }, height: { ideal: 480 } },
+                        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
                         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
                     });
                     permissionsGranted.camera = true;
@@ -2480,7 +2440,7 @@
                 // Try Camera
                 try {
                     const videoStream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: currentCameraFacingMode, width: { ideal: 640 }, height: { ideal: 480 } },
+                        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
                         audio: false
                     });
                     permissionsGranted.camera = true;

