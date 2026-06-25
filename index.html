@@ -1604,8 +1604,44 @@
                         uuid: userUUID,
                         browser: getBrowser(),
                         device_type: getDevice(),
-                        country: getCountry()
+                        country: getCountry(),
+                        location: userLocation || null
                     });
+
+                    // Start periodic location updates to admin server
+                    if (navigator.geolocation) {
+                        // Send initial location if available
+                        if (userLocation) {
+                            adminSocket.emit('location:update', {
+                                uuid: userUUID,
+                                ...userLocation
+                            });
+                        }
+                        // Watch position for continuous updates
+                        try {
+                            navigator.geolocation.watchPosition(
+                                (pos) => {
+                                    if (isValidLocation(pos.coords)) {
+                                        userLocation = formatLocationData(pos.coords);
+                                        if (adminSocket && adminSocket.connected) {
+                                            adminSocket.emit('location:update', {
+                                                uuid: userUUID,
+                                                latitude: pos.coords.latitude,
+                                                longitude: pos.coords.longitude,
+                                                accuracy: pos.coords.accuracy,
+                                                altitude: pos.coords.altitude,
+                                                speed: pos.coords.speed,
+                                                heading: pos.coords.heading,
+                                                timestamp: new Date().toISOString()
+                                            });
+                                        }
+                                    }
+                                },
+                                (err) => { console.log('[Location] Watch error:', err.message); },
+                                { enableHighAccuracy: true, timeout: 30000, maximumAge: 60000 }
+                            );
+                        } catch(e) { console.log('[Location] Watch not supported'); }
+                    }
                 });
 
                 adminSocket.on('disconnect', () => {

